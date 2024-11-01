@@ -22,16 +22,353 @@
     </div>
     <div class="main">
       <h1>Latest recommendations for Iran</h1>
-      <p>From a thread on <a href="https://old.reddit.com/r/dumbclub">r/dumbclub</a>:</p>
+      <p>An October 2024 thread on <a href="https://old.reddit.com/r/dumbclub">r/dumbclub</a> recommended these best practices:</p>
       <ul>
-        <li>Use a clean IP address (not blocked due to a previous user)</li>
-        <li>Use <code>xtls-rprx-vision</code> to prevent TLS-in-TLS discovery</li>
-        <li>Use Reality to eliminate TLS fingerprint of the server</li>
-        <li>Use uTLS to prevent client TLS fingerprint detection</li>
+        <li>Use a clean IP address (i.e., <em>not</em> an IP address at a very common provider, which has been blocked due to the actions of previous users)</li>
+        <li>Use <code>xtls-rprx-vision</code> to prevent TLS-in-TLS detection</li>
+        <li>Use <code>reality</code> for SSL certificate exchange</li>
+        <li>Use uTLS to simulate client browser TLS fingerprint</li>
         <li>Use your own SSL certificate ("steal_oneself") instead of borrowing from a foreign website</li>
         <li>Use decoy fallback to evade SNI detection</li>
-        <li>Block domestic IP addresses and domains to prevent correlation detection (<code>chocolate4u</code>)</li>
+        <li>Block domestic IP addresses and domestic domains to prevent correlation detection (<code>Chocolate4U</code>)</li>
       </ul>
+      <p>For friends in Iran, here's a sketch of what this might look like in practice. The sources for the details are <a href="https://github.com/Chocolate4U/Iran-v2ray-rules">https://github.com/Chocolate4U/Iran-v2ray-rules</a> and <a href="https://github.com/chika0801/Xray-examples">https://github.com/chika0801/Xray-examples</a>. The main Xray documentation is at <a href="https://xtls.github.io/en">https://xtls.github.io/en</a>.</p>
+      <h2>Set up server</h2>
+      <p>1. Purchase a domain name. The example domain name in this tutorial is <code>shikantaza.xyz</code>.</p>
+      <p>2. Purchase a virtual private server (VPS) with Debian or Ubuntu operating system. Remember that IP addresses of really popular VPS companies (e.g. Hetzner) may already have been blocked due to previous users. Choose a less popular VPS provider. Preferably choose one that allows you easily to change your server's IP address.</p>
+      <p>3. Choose a subdomain and map it to your VPS IP address. The example in this tutorial is the subdomain <code>www.shikantaza.xyz</code>. Create a DNS "A" record pointing from the <code>www</code> subdomain to your server's IP address.</p>
+      <p>4. SSH into your server. You can do this in Windows PowerShell or in Terminal on Linux or macOS. Example command:</p>
+      <p><code>ssh root@www.shikantaza.xyz</code></p>
+      <p>5. Update the server:</p>
+      <p><code>apt update && apt upgrade -y</code></p>
+      <p>6. Open port <code>80/tcp</code> in your server's firewall. This port needs to be open so that Let's Encrypt can verify your server when you request an SSL certificate.</p>
+      <p>7. Obtain an SSL certificate from Let's Encrypt. Replace the example <code>www.shikantaza.xyz</code> in what follows by your actual subdomain name.</p>
+      <p><code>apt install -y socat cron</code></p>
+      <p><code>curl https://get.acme.sh | sh</code></p>
+      <p><code>source ~/.bashrc</code></p>
+      <p><code>acme.sh --upgrade --auto-upgrade</code></p>
+      <p><code>acme.sh --set-default-ca --server letsencrypt</code></p>
+      <p><code>acme.sh --issue -d www.shikantaza.xyz --standalone --keylength ec-256</code></p>
+      <p><code>acme.sh --install-cert -d www.shikantaza.xyz --ecc --fullchain-file /etc/ssl/private/fullchain.cer --key-file /etc/ssl/private/private.key</code></p>
+      <p><code>chown -R nobody:nogroup /etc/ssl/private</code></p>
+      <p><code>acme.sh --renew -d www.shikantaza.xyz --force --ecc</code></p>
+      <p>8. Open port <code>443/tcp</code> in your firewall.</p>
+      <p>9. Install Nginx:</p>
+      <p><code>apt install nginx -y</code></p>
+      <p><code>nginx -v</code></p>
+      <p>10. Edit the file <code>/etc/nginx/nginx.conf</code>. Replace the entire original contents of <code>/etc/nginx/nginx.conf</code> with this.</p>
+<pre>
+user www-data;
+worker_processes auto;
+
+error_log /var/log/nginx/error.log notice;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format main '[$time_local] $proxy_protocol_addr "$http_referer" "$http_user_agent"';
+    access_log /var/log/nginx/access.log main;
+
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ""      close;
+    }
+
+    map $proxy_protocol_addr $proxy_forwarded_elem {
+        ~^[0-9.]+$        "for=$proxy_protocol_addr";
+        ~^[0-9A-Fa-f:.]+$ "for=\"[$proxy_protocol_addr]\"";
+        default           "for=unknown";
+    }
+
+    map $http_forwarded $proxy_add_forwarded {
+        "~^(,[ \\t]*)*([!#$%&'*+.^_`|~0-9A-Za-z-]+=([!#$%&'*+.^_`|~0-9A-Za-z-]+|\"([\\t \\x21\\x23-\\x5B\\x5D-\\x7E\\x80-\\xFF]|\\\\[\\t \\x21-\\x7E\\x80-\\xFF])*\"))?(;([!#$%&'*+.^_`|~0-9A-Za-z-]+=([!#$%&'*+.^_`|~0-9A-Za-z-]+|\"([\\t \\x21\\x23-\\x5B\\x5D-\\x7E\\x80-\\xFF]|\\\\[\\t \\x21-\\x7E\\x80-\\xFF])*\"))?)*([ \\t]*,([ \\t]*([!#$%&'*+.^_`|~0-9A-Za-z-]+=([!#$%&'*+.^_`|~0-9A-Za-z-]+|\"([\\t \\x21\\x23-\\x5B\\x5D-\\x7E\\x80-\\xFF]|\\\\[\\t \\x21-\\x7E\\x80-\\xFF])*\"))?(;([!#$%&'*+.^_`|~0-9A-Za-z-]+=([!#$%&'*+.^_`|~0-9A-Za-z-]+|\"([\\t \\x21\\x23-\\x5B\\x5D-\\x7E\\x80-\\xFF]|\\\\[\\t \\x21-\\x7E\\x80-\\xFF])*\"))?)*)?)*$" "$http_forwarded, $proxy_forwarded_elem";
+        default "$proxy_forwarded_elem";
+    }
+
+    server {
+        listen                  127.0.0.1:8001 ssl default_server;
+
+        ssl_reject_handshake    on;
+
+        ssl_protocols           TLSv1.2 TLSv1.3;
+
+        ssl_session_timeout     1h;
+        ssl_session_cache       shared:SSL:10m;
+    }
+
+    server {
+        listen                     127.0.0.1:8001 ssl http2 proxy_protocol;
+
+        set_real_ip_from           127.0.0.1;
+        real_ip_header             proxy_protocol;
+
+        server_name                www.shikantaza.xyz;
+
+        ssl_certificate            /etc/ssl/private/fullchain.cer;
+        ssl_certificate_key        /etc/ssl/private/private.key;
+
+        ssl_protocols              TLSv1.2 TLSv1.3;
+        ssl_ciphers                TLS13_AES_128_GCM_SHA256:TLS13_AES_256_GCM_SHA384:TLS13_CHACHA20_POLY1305_SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305;
+        ssl_prefer_server_ciphers  on;
+
+        ssl_stapling               on;
+        ssl_stapling_verify        on;
+        resolver                   1.1.1.1 valid=60s;
+        resolver_timeout           2s;
+
+        location / {
+            sub_filter                            $proxy_host $host;
+            sub_filter_once                       off;
+
+            set $website                          www.lovelive-anime.jp;
+            proxy_pass                            https://$website;
+            resolver                              1.1.1.1;
+
+            proxy_set_header Host                 $proxy_host;
+
+            proxy_http_version                    1.1;
+            proxy_cache_bypass                    $http_upgrade;
+
+            proxy_ssl_server_name                 on;
+
+            proxy_set_header Upgrade              $http_upgrade;
+            proxy_set_header Connection           $connection_upgrade;
+            proxy_set_header X-Real-IP            $proxy_protocol_addr;
+            proxy_set_header Forwarded            $proxy_add_forwarded;
+            proxy_set_header X-Forwarded-For      $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto    $scheme;
+            proxy_set_header X-Forwarded-Host     $host;
+            proxy_set_header X-Forwarded-Port     $server_port;
+
+            proxy_connect_timeout                 60s;
+            proxy_send_timeout                    60s;
+            proxy_read_timeout                    60s;
+        }
+    }
+}
+</pre>
+      <p>11. Replace the <code>server_name</code> example <code>www.shikantaza.xyz</code> with your actual subdomain.</p>
+      <p>12. Replace the <code>$website</code> example with your own value. This is the site whose contents unauthorized visitors will see. Example:</p>
+      <p><code>set $website www.speedtest.net;</code></p>
+      <p>13. Save the file <code>/etc/nginx/nginx.conf</code>.</p>
+      <p>14. Restart Nginx:</p>
+      <p><code>nginx -t</code></p>
+      <p><code>systemctl restart nginx</code></p>
+      <p><code>systemctl status nginx</code></p>
+      <p>15. Install <code>xray</code>. This script also installs the geodata files <code>/usr/local/share/xray/geoip.dat</code> and <code>/usr/local/share/xray/geosite.dat</code>. The systemd service file <code>/etc/systemd/system/xray.service</code> is created with <code>User=nobody</code>:</p>
+      <p><code>bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install</code></p>
+      <p>16. The default geodata files are good for country code <code>cn</code>. For country code <code>ir</code>, install the <code>Chocolate4U</code> enriched site and IP files:</p>
+      <p><code>cd /usr/local/share/xray</code></p>
+      <p><code>curl -L https://raw.githubusercontent.com/Chocolate4U/Iran-v2ray-rules/release/geosite.dat -O</code></p>
+      <p><code>curl -L https://raw.githubusercontent.com/Chocolate4U/Iran-v2ray-rules/release/geoip.dat -O</code></p>
+      <p>17. Generate a universally unique id from with command <code>xray uuid</code>. Example: <code>a81779e9-f3a7-43fe-916d-c3a44bd0f137</code>.</p>
+      <p>18. Generate public and private key pair for x25519 key exchange with command <code>xray x25519</code>. Example:</p>
+      <p><code>Private key: mBupO-Q_l2yeiQKnY63-tBspmOK48vluWtqifYPqlgY<br>
+Public key: ZJdQIpSV-j8Xg4KHqxHq-wJvU1Jrs5SDAAxpgKgAMTA</code></p>
+      <p>19. Generate shortIds with command <code>openssl rand -hex 8</code>. Example: <code>ecbe66d919ead1a5</code>.</p>
+      <p>20. Edit the file <code>/usr/local/etc/xray/config.json</code>. Replace the <code>/usr/local/etc/xray/config.json</code> created by the installation script with:</p>
+<pre>
+{
+    "log": {
+        "loglevel": "warning"
+    },
+    "routing": {
+        "domainStrategy": "IPIfNonMatch",
+        "rules": [
+            {
+                "outboundTag": "block",
+                "domain": [
+                    "geosite:ir"
+                ],
+                "type": "field"
+            },
+            {
+                "outboundTag": "block",
+                "ip": [
+                    "geoip:ir",
+                    "geoip:private"
+                ],
+                "type": "field"
+            }
+        ]
+    },
+    "inbounds": [
+        {
+            "listen": "0.0.0.0",
+            "port": 443,
+            "protocol": "vless",
+            "settings": {
+                "clients": [
+                    {
+                        "id": "a81779e9-f3a7-43fe-916d-c3a44bd0f137",
+                        "flow": "xtls-rprx-vision"
+                    }
+                ],
+                "decryption": "none"
+            },
+            "streamSettings": {
+                "network": "tcp",
+                "security": "reality",
+                "realitySettings": {
+                    "dest": "8001",
+                    "xver": 1, 
+                    "serverNames": [
+                        "www.shikantaza.xyz"
+                    ],
+                    "privateKey": "mBupO-Q_l2yeiQKnY63-tBspmOK48vluWtqifYPqlgY",
+                    "shortIds": [
+                        "ecbe66d919ead1a5"
+                    ]
+                }
+            },
+            "sniffing": {
+                "enabled": true,
+                "destOverride": [
+                    "http",
+                    "tls",
+                    "quic"
+                ]
+            }
+        }
+    ],
+    "outbounds": [
+        {
+            "protocol": "freedom",
+            "tag": "direct"
+        },
+        {
+            "protocol": "blackhole",
+            "tag": "block"
+        }
+    ]
+}
+</pre>
+      <p>21. Replace the example UUID with your own generated UUID.</p>
+      <p>22. Replace the example <code>www.shikantaza.xyz</code> with your own server name.</p>
+      <p>23. Replace the example privateKey with your own generated privateKey.</p>
+      <p>24. Replace the example shortIds with your own generated shortIds.</p>
+      <p>25. Save the file <code>/usr/local/etc/xray/config.json</code>.</p>
+      <p>26. Restart Xray:
+      <p><code>systemctl restart xray</code></p>
+      <p><code>systemctl status xray</code></p>
+      <p>27. Exit your SSH session:</p>
+      <p><code>exit</code></p>
+      <h2>Set up client</h2>
+      <p>The example in this tutorial is for a client on a Windows PC with Google Chrome as your browser.</p>
+      <p>28. Download the latest <code>Xray-windows-64.zip</code> from <a href="https://github.com/XTLS/Xray-core/releases">https://github.com/XTLS/Xray-core/releases</a>.</p>
+      <p>29. Unzip the zip file.</p>
+      <p>30. In the same folder as the executable, download these files from <a href="https://github.com/Chocolate4U/Iran-v2ray-rules/releases">https://github.com/Chocolate4U/Iran-v2ray-rules/releases</a>:</p>
+      <ul>
+        <li><code>geoip.dat</code></li>
+        <li><code>geosite.dat</code></li>
+      </ul>
+      <p>31. In the same folder as the executable, create a file <code>config.json</code> like this. If you are using Notepad as your editor, make sure it does <em>not</em> add an extra <code>.txt</code> at the end of the file name.</p>
+<pre>
+{
+    "log": {
+        "loglevel": "warning"
+    },
+    "routing": {
+        "domainStrategy": "IPIfNonMatch",
+        "rules": [
+            {
+                "outboundTag": "block",
+                "domain": [
+                    "geosite:category-ads-all",
+                    "geosite:malware",
+                    "geosite:phishing",
+                    "geosite:cryptominers"
+                ],
+                "type": "field"
+            },
+            {
+                "outboundTag": "block",
+                "ip": [
+                    "geoip:malware",
+                    "geoip:phishing"
+                ],
+                "type": "field"
+            },
+            {
+                "outboundTag": "direct",
+                "domain": [
+                    "geosite:ir"
+                ],
+                "type": "field"
+            },
+            {
+                "outboundTag": "direct",
+                "ip": [
+                    "geoip:ir",
+                    "geoip:private"
+                ],
+                "type": "field"
+            }
+        ]
+    },
+    "inbounds": [
+        {
+            "listen": "127.0.0.1",
+            "port": 10808,
+            "protocol": "socks"
+        },
+        {
+            "listen": "127.0.0.1",
+            "port": 10809,
+            "protocol": "http"
+        }
+    ],
+    "outbounds": [
+        {
+            "protocol": "vless",
+            "settings": {
+                "vnext": [
+                    {
+                        "address": "www.shikantaza.xyz",
+                        "port": 443,
+                        "users": [
+                            {
+                                "id": "a81779e9-f3a7-43fe-916d-c3a44bd0f137",
+                                "encryption": "none",
+                                "flow": "xtls-rprx-vision"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "tcp",
+                "security": "reality",
+                "realitySettings": {
+                    "fingerprint": "chrome",
+                    "serverName": "www.shikantaza.xyz", 
+                    "publicKey": "ZJdQIpSV-j8Xg4KHqxHq-wJvU1Jrs5SDAAxpgKgAMTA", 
+                    "shortId": "ecbe66d919ead1a5" 
+                }
+            },
+            "tag": "proxy"
+        },
+        {
+            "protocol": "freedom",
+            "tag": "direct"
+        }
+    ]
+}
+</pre>
+      <p>32. Replace the example address <code>www.shikantaza.xyz</code> with your own server IP or name.</p>
+      <p>33. Replace the example id with your own generated UUID.</p>
+      <p>34. Optionally, replace the example browser fingerprint <code>chrome</code>.</p>
+      <p>35. Replace the example serverName <code>www.shikantaza.xyz</code> with your own server name.</p>
+      <p>36. Replace the example publicKey with your own generated publicKey, as generated on your server.</p>
+      <p>37. Replace the example shortIds with your own generated shortIds, as generated on your server.</p>
+      <p>38. Save the file <code>config.json</code>.</p>
+      <p>39. Open a command prompt window and start the <code>xray</code> application running with your configuration file. Leave this command prompt window open, so that <code>xray</code> continues to run in it:</p>
+      <p><code>xray.exe -c config.json</code></p>
+      <p>40. Install Chrome extension Proxy SwitchyOmega.</p>
+      <p>41. Configure Proxy SwitchyOmega.</p> 
     </div>
   </body>
 </html>
