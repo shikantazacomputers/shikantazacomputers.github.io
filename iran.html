@@ -14,6 +14,7 @@
       .header {padding:60px; text-align:center; background:#000; font-size:30px;}
       .main {padding:5px;}
       p,li {line-height:1.8em;}
+      img {display:block; max-width:100%; height:auto; margin:0 auto;}
     </style>
   </head>
   <body>
@@ -260,12 +261,17 @@ Public key: ZJdQIpSV-j8Xg4KHqxHq-wJvU1Jrs5SDAAxpgKgAMTA</code></p>
       <p>The example in this tutorial is for a client on a Windows PC with Google Chrome as your browser.</p>
       <p>28. Download the latest <code>Xray-windows-64.zip</code> from <a href="https://github.com/XTLS/Xray-core/releases">https://github.com/XTLS/Xray-core/releases</a>.</p>
       <p>29. Unzip the zip file.</p>
-      <p>30. In the same folder as the executable, download these files from <a href="https://github.com/Chocolate4U/Iran-v2ray-rules/releases">https://github.com/Chocolate4U/Iran-v2ray-rules/releases</a>:</p>
+      <p>30. In the same folder as the executable (e.g. <code>Downloads\Xray-windows-64</code>), delete the original files:</p>
       <ul>
         <li><code>geoip.dat</code></li>
         <li><code>geosite.dat</code></li>
       </ul>
-      <p>31. In the same folder as the executable, create a file <code>config.json</code> like this. If you are using Notepad as your editor, make sure it does <em>not</em> add an extra <code>.txt</code> at the end of the file name.</p>
+      <p>31. In the same folder as the executable, download these enriched files from <a href="https://github.com/Chocolate4U/Iran-v2ray-rules/releases">https://github.com/Chocolate4U/Iran-v2ray-rules/releases</a>:</p>
+      <ul>
+        <li><code>geoip.dat</code></li>
+        <li><code>geosite.dat</code></li>
+      </ul>
+      <p>32. In the same folder as the executable, create a file <code>config.json</code> like this. If you are using Notepad as your editor, make sure it does <em>not</em> add an extra <code>.txt</code> at the end of the file name.</p>
 <pre>
 {
     "log": {
@@ -354,21 +360,31 @@ Public key: ZJdQIpSV-j8Xg4KHqxHq-wJvU1Jrs5SDAAxpgKgAMTA</code></p>
         {
             "protocol": "freedom",
             "tag": "direct"
+        },
+        {
+            "protocol": "blackhole",
+            "tag": "block"
         }
     ]
 }
 </pre>
-      <p>32. Replace the example address <code>www.shikantaza.xyz</code> with your own server IP or name.</p>
-      <p>33. Replace the example id with your own generated UUID.</p>
-      <p>34. Optionally, replace the example browser fingerprint <code>chrome</code>.</p>
-      <p>35. Replace the example serverName <code>www.shikantaza.xyz</code> with your own server name.</p>
-      <p>36. Replace the example publicKey with your own generated publicKey, as generated on your server.</p>
-      <p>37. Replace the example shortIds with your own generated shortIds, as generated on your server.</p>
-      <p>38. Save the file <code>config.json</code>.</p>
-      <p>39. Open a command prompt window and start the <code>xray</code> application running with your configuration file. Leave this command prompt window open, so that <code>xray</code> continues to run in it:</p>
+      <p>33. Replace the example address <code>www.shikantaza.xyz</code> with your own server IP or name.</p>
+      <p>34. Replace the example id with your own generated UUID.</p>
+      <p>35. Optionally, replace the example browser fingerprint <code>chrome</code>.</p>
+      <p>36. Replace the example serverName <code>www.shikantaza.xyz</code> with your own server name.</p>
+      <p>37. Replace the example publicKey with your own generated publicKey, as generated on your server.</p>
+      <p>38. Replace the example shortIds with your own generated shortIds, as generated on your server.</p>
+      <p>39. Save the file <code>config.json</code>.</p>
+      <img src="img/iran001.png" alt="Downloads\Xray-windows-64 folder contents">
+      <p>40. Open a command prompt window and start the <code>xray</code> application running with your configuration file. Leave this command prompt window open, so that <code>xray</code> continues to run in it:</p>
+      <p><code>cd Downloads</code></p>
+      <p><code>cd Xray-windows-64</code></p>
       <p><code>xray.exe -c config.json</code></p>
-      <p>40. Install Chrome extension Proxy SwitchyOmega.</p>
-      <p>41. Configure Proxy SwitchyOmega.</p> 
+      <img src="img/iran002.png" alt="Command prompt window running xray">
+      <p>41. Install Chrome extension Proxy SwitchyOmega 3 (<strong>Extensions</strong> &gt; <strong>Visit Chrome Web Store</strong>.</p>
+      <img src="img/iran003.png" alt="Proxy SwitchyOmega 3">
+      <p>42. Configure Proxy SwitchyOmega to use the SOCKS5 proxy on <code>127.0.0.1</code> port <code>10808</code>.</p> 
+      <img src="img/iran004.png" alt="Configure Proxy SwitchyOmega to use the SOCKS5 proxy">
     </div>
   </body>
 </html>
